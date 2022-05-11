@@ -209,8 +209,6 @@ const std::list<gp_Trsf> LinearPattern::getTransformations(const std::vector<App
     transformations.push_back(trans); // identity transformation
 
     if (occurrences > 1) {
-        // double offset = distance / (occurrences - 1);
-        //double offset = Offset.getValue();
         double offset = 0;
 
         switch (static_cast<LinearPatternMode>(Mode.getValue())) {
