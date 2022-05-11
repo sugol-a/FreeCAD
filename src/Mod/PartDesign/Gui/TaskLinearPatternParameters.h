@@ -59,7 +59,9 @@ private Q_SLOTS:
     void onUpdateViewTimer();
     void onDirectionChanged(int num);
     void onCheckReverse(const bool on);
+    void onModeChanged(const int mode);
     void onLength(const double l);
+    void onOffset(const double o);
     void onOccurrences(const uint n);
     virtual void onUpdateView(bool);
     virtual void onFeatureDeleted(void);
@@ -72,13 +74,16 @@ protected:
     virtual void clearButtons();
     void getDirection(App::DocumentObject*& obj, std::vector<std::string>& sub) const;
     bool getReverse(void) const;
+    int getMode(void) const;
     double getLength(void) const;
+    double getOffset(void) const;
     unsigned getOccurrences(void) const;
 
 private:
     void connectSignals();
     void setupUI();
     void updateUI();
+    void adaptVisibilityToMode();
     void kickUpdateViewTimer() const;
 
 private:

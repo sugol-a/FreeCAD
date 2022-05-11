@@ -124,8 +124,12 @@ void TaskLinearPatternParameters::connectSignals()
             this, SLOT(onDirectionChanged(int)));
     connect(ui->checkReverse, SIGNAL(toggled(bool)),
             this, SLOT(onCheckReverse(bool)));
+    connect(ui->comboMode, SIGNAL(activated(int)),
+            this, SLOT(onModeChanged(int)));
     connect(ui->spinLength, SIGNAL(valueChanged(double)),
             this, SLOT(onLength(double)));
+    connect(ui->spinOffset, SIGNAL(valueChanged(double)),
+            this, SLOT(onOffset(double)));
     connect(ui->spinOccurrences, SIGNAL(valueChanged(uint)),
             this, SLOT(onOccurrences(uint)));
     connect(ui->checkBoxUpdateView, SIGNAL(toggled(bool)),
@@ -151,16 +155,22 @@ void TaskLinearPatternParameters::setupUI()
     // ---------------------
 
     ui->spinLength->bind(pcLinearPattern->Length);
+    ui->spinOffset->bind(pcLinearPattern->Offset);
     ui->spinOccurrences->bind(pcLinearPattern->Occurrences);
     ui->spinOccurrences->setMaximum(pcLinearPattern->Occurrences.getMaximum());
     ui->spinOccurrences->setMinimum(pcLinearPattern->Occurrences.getMinimum());
 
     ui->comboDirection->setEnabled(true);
     ui->checkReverse->setEnabled(true);
+    ui->comboMode->setEnabled(true);
     ui->spinLength->blockSignals(true);
     ui->spinLength->setEnabled(true);
     ui->spinLength->setUnit(Base::Unit::Length);
     ui->spinLength->blockSignals(false);
+    ui->spinOffset->blockSignals(true);
+    ui->spinOffset->setEnabled(true);
+    ui->spinOffset->setUnit(Base::Unit::Length);
+    ui->spinOffset->blockSignals(false);
     ui->spinOccurrences->setEnabled(true);
     
     dirLinks.setCombo(*(ui->comboDirection));
@@ -185,6 +195,7 @@ void TaskLinearPatternParameters::setupUI()
         }
     }
 
+    adaptVisibilityToMode();
     updateUI();
     connectSignals();
 }
@@ -199,6 +210,7 @@ void TaskLinearPatternParameters::updateUI()
 
     bool reverse = pcLinearPattern->Reversed.getValue();
     double length = pcLinearPattern->Length.getValue();
+    double offset = pcLinearPattern->Offset.getValue();
     unsigned occurrences = pcLinearPattern->Occurrences.getValue();
 
     if (dirLinks.setCurrentLink(pcLinearPattern->Direction) == -1){
@@ -212,9 +224,40 @@ void TaskLinearPatternParameters::updateUI()
     // didn't check for blockUpdate
     ui->checkReverse->setChecked(reverse);
     ui->spinLength->setValue(length);
+    ui->spinOffset->setValue(offset);
     ui->spinOccurrences->setValue(occurrences);
 
     blockUpdate = false;
+}
+
+void TaskLinearPatternParameters::adaptVisibilityToMode()
+{
+    bool isLengthVisible = false;
+    bool isOffsetVisible = false;
+    auto pcLinearPattern = static_cast<PartDesign::LinearPattern*>(getObject());
+    auto mode = static_cast<PartDesign::LinearPatternMode>(pcLinearPattern->Mode.getValue());
+
+    switch (mode)
+    {
+        case PartDesign::LinearPatternMode::length:
+            isLengthVisible = true;
+            isOffsetVisible = false;
+            break;
+
+        case PartDesign::LinearPatternMode::offset:
+            isLengthVisible = false;
+            isOffsetVisible = true;
+            break;
+
+        default:
+           break;
+    }
+
+    ui->spinLength->setVisible(isLengthVisible);
+    ui->labelLength->setVisible(isLengthVisible);
+
+    ui->spinOffset->setVisible(isOffsetVisible);
+    ui->labelOffset->setVisible(isOffsetVisible);
 }
 
 void TaskLinearPatternParameters::onUpdateViewTimer()
@@ -292,11 +335,33 @@ void TaskLinearPatternParameters::onCheckReverse(const bool on) {
     kickUpdateViewTimer();
 }
 
+void TaskLinearPatternParameters::onModeChanged(const int mode) {
+    if (blockUpdate)
+        return;
+    PartDesign::LinearPattern* pcLinearPattern = static_cast<PartDesign::LinearPattern*>(getObject());
+    pcLinearPattern->Mode.setValue(mode);
+
+    adaptVisibilityToMode();
+
+    exitSelectionMode();
+    kickUpdateViewTimer();
+}
+
 void TaskLinearPatternParameters::onLength(const double l) {
     if (blockUpdate)
         return;
     PartDesign::LinearPattern* pcLinearPattern = static_cast<PartDesign::LinearPattern*>(getObject());
     pcLinearPattern->Length.setValue(l);
+
+    exitSelectionMode();
+    kickUpdateViewTimer();
+}
+
+void TaskLinearPatternParameters::onOffset(const double o) {
+    if (blockUpdate)
+        return;
+    PartDesign::LinearPattern* pcLinearPattern = static_cast<PartDesign::LinearPattern*>(getObject());
+    pcLinearPattern->Offset.setValue(o);
 
     exitSelectionMode();
     kickUpdateViewTimer();
@@ -350,6 +415,7 @@ void TaskLinearPatternParameters::onUpdateView(bool on)
         pcLinearPattern->Direction.setValue(obj,directions);
         pcLinearPattern->Reversed.setValue(getReverse());
         pcLinearPattern->Length.setValue(getLength());
+        pcLinearPattern->Offset.setValue(getOffset());
         pcLinearPattern->Occurrences.setValue(getOccurrences());
 
         recomputeFeature();
@@ -384,9 +450,19 @@ bool TaskLinearPatternParameters::getReverse(void) const
     return ui->checkReverse->isChecked();
 }
 
+int TaskLinearPatternParameters::getMode(void) const
+{
+    return ui->comboMode->currentIndex();
+}
+
 double TaskLinearPatternParameters::getLength(void) const
 {
     return ui->spinLength->value().getValue();
+}
+
+double TaskLinearPatternParameters::getOffset(void) const
+{
+    return ui->spinOffset->value().getValue();
 }
 
 unsigned TaskLinearPatternParameters::getOccurrences(void) const
@@ -434,6 +510,7 @@ void TaskLinearPatternParameters::apply()
     FCMD_OBJ_CMD(tobj,"Reversed = " << getReverse());
 
     ui->spinLength->apply();
+    ui->spinOffset->apply();
     ui->spinOccurrences->apply();
 }
 
