@@ -51,13 +51,21 @@ PROPERTY_SOURCE(PartDesign::LinearPattern, PartDesign::Transformed)
 
 const App::PropertyIntegerConstraint::Constraints LinearPattern::intOccurrences = { 1, INT_MAX, 1 };
 
+const char* LinearPattern::ModeEnums[] = { "length", "offset" };
+
 LinearPattern::LinearPattern()
 {
+    auto initialMode = LinearPatternMode::length;
+
     ADD_PROPERTY_TYPE(Direction,(nullptr),"LinearPattern",(App::PropertyType)(App::Prop_None),"Direction");
     ADD_PROPERTY(Reversed,(0));
+    ADD_PROPERTY(Mode, (long(initialMode)));
     ADD_PROPERTY(Length,(100.0));
+    ADD_PROPERTY(Offset,(10.0));
     ADD_PROPERTY(Occurrences,(3));
     Occurrences.setConstraints(&intOccurrences);
+    Mode.setEnums(ModeEnums);
+    setReadWriteStatusForMode(initialMode);
 }
 
 short LinearPattern::mustExecute() const
@@ -68,6 +76,27 @@ short LinearPattern::mustExecute() const
         Occurrences.isTouched())
         return 1;
     return Transformed::mustExecute();
+}
+
+void LinearPattern::setReadWriteStatusForMode(LinearPatternMode mode)
+{
+    switch (mode)
+    {
+        case LinearPatternMode::length:
+            Length.setStatus(App::Property::ReadOnly, false);
+            Offset.setStatus(App::Property::ReadOnly, true);
+            break;
+
+        case LinearPatternMode::offset:
+            Length.setStatus(App::Property::ReadOnly, true);
+            Offset.setStatus(App::Property::ReadOnly, false);
+            break;
+
+        default:
+            Length.setStatus(App::Property::ReadOnly, true);
+            Offset.setStatus(App::Property::ReadOnly, true);
+            break;
+    }
 }
 
 const std::list<gp_Trsf> LinearPattern::getTransformations(const std::vector<App::DocumentObject*>)
@@ -180,7 +209,22 @@ const std::list<gp_Trsf> LinearPattern::getTransformations(const std::vector<App
     transformations.push_back(trans); // identity transformation
 
     if (occurrences > 1) {
-        double offset = distance / (occurrences - 1);
+        // double offset = distance / (occurrences - 1);
+        //double offset = Offset.getValue();
+        double offset = 0;
+
+        switch (static_cast<LinearPatternMode>(Mode.getValue())) {
+            case LinearPatternMode::length:
+                offset = distance / (occurrences - 1);
+                break;
+            case LinearPatternMode::offset:
+                offset = Offset.getValue();
+                break;
+
+            default:
+                throw Base::ValueError("Invalid mode");
+        }
+
         for (int i = 1; i < occurrences; i++) {
             trans.SetTranslation(direction * i * offset);
             transformations.push_back(trans);
@@ -203,6 +247,16 @@ void LinearPattern::handleChangedPropertyType(Base::XMLReader& reader, const cha
     else {
         Transformed::handleChangedPropertyType(reader, TypeName, prop);
     }
+}
+
+void LinearPattern::onChanged(const App::Property* prop)
+{
+    if (prop == &Mode) {
+        auto mode = static_cast<LinearPatternMode>(Mode.getValue());
+        setReadWriteStatusForMode(mode);
+    }
+
+    Transformed::onChanged(prop);
 }
 
 }

@@ -29,6 +29,10 @@
 
 namespace PartDesign
 {
+enum class LinearPatternMode {
+    length,
+    offset
+};
 
 class PartDesignExport LinearPattern : public PartDesign::Transformed
 {
@@ -37,9 +41,11 @@ class PartDesignExport LinearPattern : public PartDesign::Transformed
 public:
     LinearPattern();
 
-    App::PropertyLinkSub Direction;
-    App::PropertyBool    Reversed;
-    App::PropertyLength  Length;
+    App::PropertyLinkSub     Direction;
+    App::PropertyBool        Reversed;
+    App::PropertyEnumeration Mode;
+    App::PropertyLength      Length;
+    App::PropertyLength      Offset;
     App::PropertyIntegerConstraint Occurrences;
 
    /** @name methods override feature */
@@ -66,6 +72,12 @@ public:
 protected:
     virtual void handleChangedPropertyType(Base::XMLReader& reader, const char* TypeName, App::Property* prop);
     static const App::PropertyIntegerConstraint::Constraints intOccurrences;
+    void onChanged(const App::Property* prop);
+
+private:
+    static const char* ModeEnums[];
+
+    void setReadWriteStatusForMode(LinearPatternMode mode);
 };
 
 } //namespace PartDesign
